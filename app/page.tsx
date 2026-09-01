@@ -8,6 +8,7 @@
 import "./webmcp-init";
 import { useWebMCP } from "usewebmcp";
 import { formatAtomicUsdc, formatPrice, shortenAddress } from "@/lib/format";
+import { BazaarTools } from "@/components/BazaarTools";
 
 const FACILITATOR_URL = "https://vellar-facilitator.onrender.com";
 const EXPLORER_URL = "https://vellar-explorer.onrender.com";
@@ -191,20 +192,16 @@ export default function Home() {
   return (
     <main className="mx-auto flex max-w-2xl flex-1 flex-col gap-8 px-6 py-16">
       <header className="flex flex-col gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight">Vellar x402 — WebMCP Tools</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Vellar x402 — Live API Marketplace for AI Agents</h1>
         <p className="text-sm leading-relaxed text-black/70 dark:text-white/70">
-          This page registers three{" "}
-          <a className="underline" href="https://github.com/webmachinelearning/webmcp-types" target="_blank" rel="noreferrer">
-            WebMCP
-          </a>{" "}
-          tools that let an AI agent discover, pay for, and verify earnings from x402-protected API
-          endpoints on the Vellar Bazaar — a marketplace of paid Stellar APIs an agent can find and
-          use without any human setting up API keys or accounts in advance.
+          This page connects AI agents to the Vellar Bazaar — a catalog of paid API endpoints on
+          Stellar. The tools below are generated live from real endpoints that have received real
+          on-chain payments. Every tool here is purchasable with USDC on Stellar testnet.
         </p>
       </header>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-medium">Registered tools</h2>
+        <h2 className="text-lg font-medium">Core tools</h2>
         <ul className="flex flex-col gap-4">
           {TOOLS.map((tool) => (
             <li key={tool.name} className="rounded-lg border border-black/10 p-4 dark:border-white/15">
@@ -214,6 +211,8 @@ export default function Home() {
           ))}
         </ul>
       </section>
+
+      <BazaarTools />
 
       <p className="rounded-lg bg-black/5 p-4 text-sm dark:bg-white/10">
         Open this page in ChatGPT&apos;s browser or Chrome with WebMCP enabled to use these tools.

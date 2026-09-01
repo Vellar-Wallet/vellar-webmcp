@@ -1,18 +1,23 @@
 # vellar-webmcp
 
-A Next.js app that registers three [WebMCP](https://github.com/webmachinelearning/webmcp-types)
-tools exposing the Vellar x402 payment ecosystem on Stellar to AI agents. WebMCP lets a web page
-expose callable tools directly to an AI agent browsing it — no separate MCP server, no API keys
-handed out in advance. This page *is* the integration surface.
+A Next.js app that registers [WebMCP](https://github.com/webmachinelearning/webmcp-types) tools
+exposing the Vellar x402 payment ecosystem on Stellar to AI agents. WebMCP lets a web page expose
+callable tools directly to an AI agent browsing it — no separate MCP server, no API keys handed out
+in advance. This page *is* the integration surface.
 
 ## What it is
 
-A single page (`app/page.tsx`) that, when loaded in a WebMCP-capable browser, registers three tools
-on `document.modelContext`. An agent browsing the page can discover paid API endpoints on the Vellar
-Bazaar, pay for and call one with a real (testnet) on-chain USDC payment, and check a seller's
-recent earnings — all without a human setting up credentials.
+A single page (`app/page.tsx`) that, when loaded in a WebMCP-capable browser, registers:
 
-## The three tools
+- **3 core tools**, always present, that let an agent discover paid API endpoints on the Vellar
+  Bazaar, pay for and call one with a real (testnet) on-chain USDC payment, and check a seller's
+  recent earnings — all without a human setting up credentials.
+- **A dynamic tool per live, payment-proven Bazaar listing**, fetched and registered on page load —
+  see "Dynamic tool generation" below. This is the project's core differentiator: rather than one
+  generic "call any x402 URL" tool, an agent sees a dedicated, named, pre-priced tool per real
+  endpoint the Bazaar actually knows about.
+
+## The three core tools
 
 - **`search_vellar_bazaar`** — Searches the Vellar Bazaar catalog (`vellar-facilitator`'s
   `/discovery/search`) for x402-protected API endpoints matching a natural-language query. Returns
@@ -28,16 +33,51 @@ recent earnings — all without a human setting up credentials.
   via `vellar-explorer`'s `/payments` endpoint, returning amounts, payer addresses, timestamps, and
   Stellar Expert links. Read-only.
 
+## Dynamic tool generation
+
+On mount, `components/BazaarTools.tsx` fetches `vellar-facilitator`'s
+`GET /discovery/resources` catalog and registers one WebMCP tool per listing whose
+`trust.ownershipState` is `"verified"` or `"proven-unconfirmed"` — i.e. has actually received
+payment activity, per the facilitator's own trust model. `"unverified"` listings are excluded
+entirely.
+
+Each dynamic tool is named `call_{sanitized_last_path_segment}` (e.g.
+`https://vellar-seller-demo.onrender.com/uuid` → `call_uuid`), with a title-cased title and a
+description built only from real catalog data (price + the catalog's own `description` field,
+truncated under 200 characters, never fabricated). Calling it hits `/api/pay` with that endpoint's
+URL hardcoded at generation time — the same server-side flow and the same `payer !== payTo` security
+gate as the `pay_and_call` core tool, unchanged.
+
+Two listing shapes are filtered out **before** a tool is ever registered for them, logged to the
+browser console with counts, rather than shipped as a tool that's guaranteed to fail every call:
+
+- **Path-templated resources** — a catalog URL containing `/:` (e.g. `.../inspect/:address`) is an
+  unresolved template, not a callable URL.
+- **Non-HTTPS resources** — a `http://` or `localhost` catalog entry (seen live, from local dev
+  seller processes) is either insecure or unreachable from the deployed server; `/api/pay`'s own
+  validation would reject it anyway.
+
+Because `useWebMCP` is a real React hook (`useState`/`useRef`/`useEffect` internally), it cannot be
+called inside a loop over a dynamic-length array — `components/BazaarTools.tsx` instead renders one
+dedicated `<BazaarTool>` child component per registered listing, each calling the hook exactly once;
+mounting/unmounting whole components is what varies as the live catalog changes, never the number of
+hook calls within one component.
+
+If the catalog fetch fails, the page shows "Could not load live Bazaar tools — showing core tools
+only" and the 3 core tools continue to work regardless.
+
 ## Architecture
 
 ```
-app/page.tsx           — client component; registers the 3 tools via usewebmcp, renders page UI
-app/webmcp-init.ts      — initializes the WebMCP polyfill so document.modelContext exists in any
-                           current browser (see "Runtime" below)
-app/api/pay/route.ts   — server-side route handling Tool 2's actual payment logic
-lib/stellar-account.ts — throwaway keypair funding: friendbot, USDC trustline, DEX buy
-lib/x402-payment.ts    — the x402 protocol flow itself: 402 challenge fetch, payload signing, retry
-lib/format.ts           — shared display formatting (atomic USDC -> decimal, address shortening)
+app/page.tsx             — client component; registers the 3 core tools, renders page UI
+app/webmcp-init.ts        — initializes the WebMCP polyfill so document.modelContext exists in any
+                             current browser (see "Runtime" below)
+app/api/pay/route.ts     — server-side route handling the actual payment logic (core + dynamic tools)
+components/BazaarTools.tsx — fetches the live catalog and registers a dynamic tool per listing
+lib/bazaar-catalog.ts     — pure helpers: filtering, name/title/description derivation, dedup
+lib/stellar-account.ts   — throwaway keypair funding: friendbot, USDC trustline, DEX buy
+lib/x402-payment.ts      — the x402 protocol flow itself: 402 challenge fetch, payload signing, retry
+lib/format.ts             — shared display formatting (atomic USDC -> decimal, address shortening)
 ```
 
 `lib/stellar-account.ts` and `lib/x402-payment.ts` are deliberately separate modules: one knows how
@@ -75,11 +115,17 @@ is already present, so it does not interfere with native WebMCP or with ChatGPT'
 3. Open the DevTools console and run:
 
    ```js
-   document.modelContext.getTools().then((t) => console.log(t));
+   document.modelContext.getTools().then((t) => {
+     console.log("total tools:", t.length);
+     t.forEach((tool) => console.log(tool.name));
+   });
    ```
 
-   This must return an array of 3 tools: `search_vellar_bazaar`, `pay_and_call`, and
-   `check_vellar_earnings`.
+   This must return the 3 core tools (`search_vellar_bazaar`, `pay_and_call`,
+   `check_vellar_earnings`) **plus** one `call_*` tool per verified/proven-unconfirmed live catalog
+   listing. The `[BazaarTools]` console log printed on page load reports exactly how many listings
+   were fetched, how many were filtered out (and why), and how many tools were registered — the two
+   counts should agree.
 
 4. From an agent (or by calling `execute` directly via the tool's registration), try:
    - `search_vellar_bazaar({ query: "weather API" })`

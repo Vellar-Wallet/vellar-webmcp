@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vellar x402 — WebMCP Tools",
+  title: "Vellar x402 — Live API Marketplace for AI Agents",
   description: "WebMCP tools exposing the Vellar x402 payment ecosystem to AI agents.",
 };
 

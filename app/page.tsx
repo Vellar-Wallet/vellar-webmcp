@@ -11,7 +11,6 @@ import { formatAtomicUsdc, formatPrice, shortenAddress } from "@/lib/format";
 import { BazaarTools } from "@/components/BazaarTools";
 
 const FACILITATOR_URL = "https://vellar-facilitator.onrender.com";
-const EXPLORER_URL = "https://vellar-explorer.onrender.com";
 
 // Tool 1 and Tool 3 are read-only lookups against external services this app
 // doesn't control — a slow or hung upstream must not hang an agent's tool
@@ -186,13 +185,19 @@ export default function Home() {
     execute: async ({ payToAddress }) => {
       const { signal, clear } = withTimeoutSignal(15_000);
       try {
-        const res = await fetch(`${EXPLORER_URL}/payments?payTo=${encodeURIComponent(payToAddress)}&limit=10`, { signal });
-        const data = await res.json();
+        // Routed through /api/earnings rather than calling vellar-explorer
+        // directly — confirmed live that vellar-explorer sends no
+        // Access-Control-Allow-Origin header, so a direct browser fetch is
+        // permanently blocked by CORS (works fine server-side, since CORS
+        // is a browser-only enforcement). /api/earnings does that same
+        // fetch server-side and hands the JSON back same-origin.
+        const res = await fetch(`/api/earnings?payTo=${encodeURIComponent(payToAddress)}&limit=10`, { signal });
+        const data = await res.json().catch(() => ({}));
         // NOTE: the live explorer returns { items: [...] }, not
         // { payments: [...] } — confirmed against the real deployed
         // endpoint, not assumed. Each item's seller field is what the spec
         // calls "payTo"; there is no per-item field literally named payTo.
-        const items: ExplorerPaymentItem[] = data.items ?? [];
+        const items: ExplorerPaymentItem[] = Array.isArray(data?.items) ? data.items : [];
         return JSON.stringify(
           items.map((p) => ({
             amount: `${formatAtomicUsdc(p.amount)} USDC`,

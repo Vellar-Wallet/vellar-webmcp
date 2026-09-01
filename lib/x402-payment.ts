@@ -48,6 +48,29 @@ export interface X402Challenge {
 }
 
 /**
+ * Retries the initial challenge fetch specifically on HTTP 429 — confirmed
+ * live against vellar-seller-demo.onrender.com: a burst of tool calls in
+ * quick succession (e.g. an agent calling several dynamic tools back to
+ * back) can trip a target endpoint's own rate limit, which returns 429
+ * instead of the expected 402 challenge. That is a transient condition, not
+ * a real failure, so it's worth a couple of short retries here — nowhere
+ * else. Any other non-429 status (including a real 402, or a genuine 4xx/5xx
+ * error) returns immediately on the first attempt, unretried.
+ */
+async function fetchWithRetryOn429(url: string, options: RequestInit, maxRetries = 2, delayMs = 2000): Promise<Response> {
+  let lastResponse: Response;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const res = await fetch(url, options);
+    if (res.status !== 429) return res;
+    lastResponse = res;
+    if (attempt < maxRetries) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  return lastResponse!;
+}
+
+/**
  * Step 1: GET the target URL (unpaid) and decode its 402 challenge.
  * Does not sign or spend anything — safe to call before any security
  * assertion has run.
@@ -58,7 +81,11 @@ export async function fetchChallenge(url: string, method: "GET" | "POST", signal
   // createPaymentPayload.
   const http = new x402HTTPClient(new x402Client());
 
-  const unpaid = await fetch(url, { method, signal });
+  // Retry-on-429 applies only to this initial challenge fetch, never to the
+  // payment submission itself (payChallenge, below) — a payment request
+  // must never be silently re-sent, since a partial success followed by a
+  // retry could risk a second real on-chain payment.
+  const unpaid = await fetchWithRetryOn429(url, { method, signal });
   if (unpaid.status !== 402) {
     throw new X402PaymentError(`expected HTTP 402 from the target endpoint, got ${unpaid.status}`);
   }

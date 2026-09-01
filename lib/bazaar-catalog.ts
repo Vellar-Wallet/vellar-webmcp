@@ -103,12 +103,22 @@ export interface DynamicToolSpec {
   ownershipState: OwnershipState;
 }
 
+/** The 3 statically registered core tool names (app/page.tsx). A dynamically
+ *  derived name that collides with one of these must be suffixed exactly
+ *  like an in-batch duplicate would be — two useWebMCP registrations
+ *  sharing a name is undefined/last-write-wins at the WebMCP runtime level,
+ *  not something this codebase can recover from once it happens. */
+export const CORE_TOOL_NAMES: readonly string[] = ["search_vellar_bazaar", "pay_and_call", "check_vellar_earnings"];
+
 /** Given a batch of candidate (name, spec) pairs in catalog order, appends
- *  _2, _3, ... to every name after the first occurrence of a duplicate, so
- *  no two dynamic tools are ever registered under the same name. Does not
- *  mutate its input. */
-export function dedupeToolNames<T extends { name: string }>(specs: T[]): T[] {
+ *  _2, _3, ... to every name after the first occurrence of a duplicate —
+ *  either a duplicate within this same batch, or a collision with a
+ *  `reservedNames` entry (defaults to the core tool names) — so no dynamic
+ *  tool is ever registered under a name already in use. Does not mutate its
+ *  input. */
+export function dedupeToolNames<T extends { name: string }>(specs: T[], reservedNames: readonly string[] = CORE_TOOL_NAMES): T[] {
   const seenCounts = new Map<string, number>();
+  for (const reserved of reservedNames) seenCounts.set(reserved, 1);
   return specs.map((spec) => {
     const count = seenCounts.get(spec.name) ?? 0;
     seenCounts.set(spec.name, count + 1);

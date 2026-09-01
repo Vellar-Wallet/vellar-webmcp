@@ -6,6 +6,8 @@
 "use client";
 
 import "./webmcp-init";
+import Image from "next/image";
+import Link from "next/link";
 import { useWebMCP } from "usewebmcp";
 import { formatAtomicUsdc, formatPrice, shortenAddress } from "@/lib/format";
 import { BazaarTools } from "@/components/BazaarTools";
@@ -214,33 +216,57 @@ export default function Home() {
   });
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-1 flex-col gap-8 px-6 py-16">
-      <header className="flex flex-col gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight">Vellar x402 — Live API Marketplace for AI Agents</h1>
-        <p className="text-sm leading-relaxed text-black/70 dark:text-white/70">
-          This page connects AI agents to the Vellar Bazaar — a catalog of paid API endpoints on
-          Stellar. The tools below are generated live from real endpoints that have received real
-          on-chain payments. Every tool here is purchasable with USDC on Stellar testnet.
-        </p>
-      </header>
+    <>
+      <div className="sticky top-0 z-40 border-b" style={{ background: "var(--lp-paper)", borderColor: "var(--lp-line)" }}>
+        <div className="mx-auto flex h-[72px] max-w-[var(--lp-container)] items-center px-[var(--lp-gutter)]">
+          <Link href="/" className="lp-brand">
+            <Image src="/logo-mark.png" alt="Vellar" width={1400} height={540} priority style={{ height: 40, width: "auto" }} />
+          </Link>
+        </div>
+      </div>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-medium">Core tools</h2>
-        <ul className="flex flex-col gap-4">
-          {TOOLS.map((tool) => (
-            <li key={tool.name} className="rounded-lg border border-black/10 p-4 dark:border-white/15">
-              <p className="font-mono text-sm font-semibold">{tool.name}</p>
-              <p className="mt-1 text-sm text-black/70 dark:text-white/70">{tool.description}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <main className="mx-auto flex w-full max-w-[var(--lp-container)] flex-1 flex-col gap-[var(--lp-sp-xl)] px-[var(--lp-gutter)] py-[var(--lp-sp-lg)]">
+        <header className="flex flex-col gap-[var(--lp-sp-4)]">
+          <span className="lp-eyebrow">
+            <span aria-hidden style={{ color: "var(--lp-mint)" }}>
+              ●
+            </span>
+            x402 on Stellar
+          </span>
+          <h1 style={{ fontSize: "var(--lp-fs-hero)" }}>
+            Live API marketplace <em>for AI agents</em>
+          </h1>
+          <p className="max-w-[62ch]" style={{ fontSize: "var(--lp-fs-lead)", color: "var(--lp-ink-soft)" }}>
+            This page connects AI agents to the Vellar Bazaar — a catalog of paid API endpoints on
+            Stellar. The tools below are generated live from real endpoints that have received real
+            on-chain payments. Every tool here is purchasable with USDC on Stellar testnet.
+          </p>
+        </header>
 
-      <BazaarTools />
+        <section className="flex flex-col gap-[var(--lp-sp-6)]">
+          <h2 style={{ fontSize: "var(--lp-fs-h3)" }}>Core tools</h2>
+          <div className="grid grid-cols-1 gap-[var(--lp-sp-6)] sm:grid-cols-3">
+            {TOOLS.map((tool) => (
+              <article key={tool.name} className="lp-card">
+                <p className="font-mono text-sm font-semibold" style={{ color: "var(--lp-forest)" }}>
+                  {tool.name}
+                </p>
+                <p className="text-sm" style={{ color: "var(--lp-ink-soft)" }}>
+                  {tool.description}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
 
-      <p className="rounded-lg bg-black/5 p-4 text-sm dark:bg-white/10">
-        Open this page in ChatGPT&apos;s browser or Chrome with WebMCP enabled to use these tools.
-      </p>
-    </main>
+        <BazaarTools />
+
+        <div className="lp-invert lp-card lp-card--dark">
+          <p className="text-sm">
+            Open this page in ChatGPT&apos;s browser or Chrome with WebMCP enabled to use these tools.
+          </p>
+        </div>
+      </main>
+    </>
   );
 }

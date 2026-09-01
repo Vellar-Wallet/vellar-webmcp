@@ -1,26 +1,245 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============================================================
+   Vellar "paper & signals" design system — ported verbatim
+   (tokens, buttons, cards, nav) from vela-wallet's own
+   apps/web/app/landing/landing.css, scoped here to the whole
+   page via `body.lp` instead of a wrapper div, since this app
+   is entirely a landing/marketing-style surface. Do not
+   reintroduce a separate token set here — port changes back to
+   the source repo's landing.css and re-copy, so the two stay
+   in sync rather than drifting into two "similar but different"
+   systems.
+
+   White paper ground, forest ink, section-level inversion (no
+   dark mode). Zero border-radius: 45° clip-cut corners + 2px
+   offset outline frames stand in for rounding and for elevation
+   shadows (none exist here). Two workhorse faces (Cabinet
+   Grotesk display / Plus Jakarta Sans body) plus Playfair
+   Display italic rationed to one emphasis phrase per heading.
+   ============================================================ */
+
+body.lp {
+  /* Surfaces */
+  --lp-paper: #ffffff;
+  --lp-paper-tint: #f5f9f6;
+  --lp-ink: #0c3b31; /* forest ink + inverted-section ground */
+  --lp-forest: #13594d; /* brand deep green — gradient stop, dark card */
+  --lp-line: rgba(12, 59, 49, 0.16);
+  --lp-line-strong: rgba(12, 59, 49, 0.32);
+
+  /* Ink */
+  --lp-ink-soft: rgba(12, 59, 49, 0.74);
+  --lp-ink-faint: rgba(12, 59, 49, 0.55);
+
+  /* On dark */
+  --lp-on-dark: #ffffff;
+  --lp-on-dark-soft: rgba(255, 255, 255, 0.78);
+  --lp-on-dark-faint: rgba(255, 255, 255, 0.55);
+  --lp-line-dark: rgba(255, 255, 255, 0.16);
+
+  /* Happy accents — Vellar brand family + one sun yellow. Fills, never
+     body-size text on paper. */
+  --lp-mint: #3ee6ad;
+  --lp-mint-soft: #dcf8ec;
+  --lp-lime: #c8f048;
+  --lp-lime-soft: #f0f9d2;
+  --lp-sun: #ffc94a;
+  --lp-sun-soft: #ffefc9;
+  --lp-coral: #ff6b5e;
+  --lp-coral-soft: #ffe4e0;
+
+  /* Type */
+  --lp-display: "Cabinet Grotesk", "Plus Jakarta Sans", ui-sans-serif, sans-serif;
+  --lp-serif: "Playfair Display", "Times New Roman", serif;
+  --lp-body: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --lp-mono: "Space Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  /* Fluid scale — min at ~320px, max at ~1360px */
+  --lp-fs-hero: clamp(2.5rem, 1.5rem + 4.5vw, 4.5rem);
+  --lp-fs-h2: clamp(1.75rem, 1.4rem + 1.8vw, 2.75rem);
+  --lp-fs-h3: clamp(1.3rem, 1.2rem + 0.6vw, 1.6rem);
+  --lp-fs-h4: 1.1875rem;
+  --lp-fs-lead: clamp(1.0625rem, 1rem + 0.4vw, 1.25rem);
+  --lp-fs-body: 1rem;
+  --lp-fs-sm: 0.9375rem;
+  --lp-fs-eyebrow: 0.8125rem;
+
+  /* Spacing — 8px base */
+  --lp-sp-2: 0.5rem;
+  --lp-sp-3: 0.75rem;
+  --lp-sp-4: 1rem;
+  --lp-sp-6: 1.5rem;
+  --lp-sp-8: 2rem;
+  --lp-sp-12: 3rem;
+  --lp-sp-lg: clamp(3rem, 6vw, 5rem);
+  --lp-sp-xl: clamp(3rem, 6vw, 5.5rem);
+  --lp-gutter: clamp(1.25rem, 4vw, 2.5rem);
+  --lp-container: 880px;
+
+  /* Shape — no radius anywhere; 45° cuts instead */
+  --lp-clip-br-sm: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+  --lp-clip-br-md: polygon(0 0, 100% 0, 100% calc(100% - 28px), calc(100% - 28px) 100%, 0 100%);
+  --lp-clip-br-md-in1: polygon(
+    1px 1px,
+    calc(100% - 1px) 1px,
+    calc(100% - 1px) calc(100% - 28.41px),
+    calc(100% - 28.41px) calc(100% - 1px),
+    1px calc(100% - 1px)
+  );
+
+  /* Motion */
+  --lp-ease-rise: cubic-bezier(0.22, 0.95, 0.3, 1);
+  --lp-dur-fast: 0.2s;
+
+  background: var(--lp-paper);
+  color: var(--lp-ink);
+  font-family: var(--lp-body);
+  font-size: var(--lp-fs-body);
+  line-height: 1.55;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+body.lp ::selection {
+  background: var(--lp-mint);
+  color: var(--lp-ink);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body.lp :focus-visible {
+  outline: 2px solid var(--lp-ink);
+  outline-offset: 3px;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+body.lp h1,
+body.lp h2,
+body.lp h3 {
+  font-family: var(--lp-display);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  margin: 0;
+  text-wrap: balance;
+}
+
+body.lp em {
+  font-family: var(--lp-serif);
+  font-style: italic;
+  font-weight: 600;
+}
+
+/* ---- Eyebrow --------------------------------------------------- */
+.lp-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  font-family: var(--lp-mono);
+  font-size: var(--lp-fs-eyebrow);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lp-ink);
+}
+
+/* ---- Buttons — ported state matrix ------------------------------ */
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  font-family: var(--lp-body);
+  font-size: var(--lp-fs-sm);
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 0.9em 1.6em;
+  border: 0;
+  border-radius: 0;
+  clip-path: var(--lp-clip-br-sm);
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background var(--lp-dur-fast) ease,
+    color var(--lp-dur-fast) ease,
+    translate var(--lp-dur-fast) ease;
+}
+.lp-btn:active {
+  translate: 0 1px;
+}
+.lp-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  translate: none;
+}
+.lp-btn--sun {
+  background: var(--lp-sun);
+  color: var(--lp-ink);
+}
+.lp-btn--sun:hover:not(:disabled) {
+  background: var(--lp-ink);
+  color: var(--lp-sun);
+}
+.lp-btn--outline {
+  background: transparent;
+  color: var(--lp-ink);
+  box-shadow: inset 0 0 0 2px var(--lp-ink);
+  clip-path: none;
+}
+.lp-btn--outline:hover:not(:disabled) {
+  background: var(--lp-ink);
+  color: var(--lp-paper);
+}
+
+/* ---- Clip-cut card — ported from .lp-pcard --------------------- */
+.lp-card {
+  position: relative;
+  background: var(--lp-line-strong); /* the 1px border */
+  clip-path: var(--lp-clip-br-md);
+  padding: var(--lp-sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lp-sp-4);
+}
+.lp-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--lp-paper);
+  clip-path: var(--lp-clip-br-md-in1);
+}
+.lp-card--tint::before {
+  background: var(--lp-paper-tint);
+}
+.lp-card--coral::before {
+  background: var(--lp-coral-soft);
+}
+/* Dark variant — used inside an .lp-invert section. .lp-card's ::before
+   normally paints the paper (light) fill on top of the card's own
+   background; this overrides that fill to the same dark ink instead, so
+   .lp-invert's white text stays readable rather than sitting on a stray
+   white ::before layer underneath it. */
+.lp-card--dark {
+  background: var(--lp-line-dark); /* the 1px border, on dark */
+}
+.lp-card--dark::before {
+  background: var(--lp-ink);
+}
+
+/* ---- Nav --------------------------------------------------------- */
+.lp-brand {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.lp-brand img {
+  display: block;
+  height: 40px;
+  width: auto;
+}
+
+/* ---- Section inversion (dark ground) ---------------------------- */
+.lp-invert {
+  background: var(--lp-ink);
+  color: var(--lp-on-dark);
+}
+.lp-invert :focus-visible {
+  outline-color: var(--lp-sun);
 }

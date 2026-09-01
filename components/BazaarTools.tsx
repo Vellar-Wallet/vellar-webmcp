@@ -176,15 +176,24 @@ function BazaarTool({ spec }: { spec: DynamicToolSpec }) {
   });
 
   return (
-    <li className="rounded-lg border border-black/10 p-4 dark:border-white/15">
+    <li className="lp-card lp-card--tint">
       <div className="flex items-center justify-between gap-2">
-        <p className="font-mono text-sm font-semibold">{spec.name}</p>
-        <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs text-black/60 dark:bg-white/10 dark:text-white/60">
+        <p className="font-mono text-sm font-semibold" style={{ color: "var(--lp-forest)" }}>
+          {spec.name}
+        </p>
+        <span
+          className="font-mono text-xs font-bold"
+          style={{ background: "var(--lp-sun-soft)", color: "var(--lp-ink)", padding: "0.25em 0.6em" }}
+        >
           {spec.priceUsdc}
         </span>
       </div>
-      <p className="mt-1 text-sm text-black/70 dark:text-white/70">{spec.description}</p>
-      <p className="mt-1 text-xs text-black/40 dark:text-white/40">{spec.ownershipState}</p>
+      <p className="text-sm" style={{ color: "var(--lp-ink-soft)" }}>
+        {spec.description}
+      </p>
+      <p className="lp-eyebrow" style={{ fontSize: "0.6875rem", color: "var(--lp-ink-faint)" }}>
+        {spec.ownershipState}
+      </p>
     </li>
   );
 }
@@ -248,37 +257,32 @@ export function BazaarTools() {
   }, [refreshNonce]);
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-lg font-medium">Live Bazaar tools</h2>
+    <section className="flex flex-col gap-[var(--lp-sp-6)]">
+      <h2 style={{ fontSize: "var(--lp-fs-h3)" }}>Live Bazaar tools</h2>
 
-      {loadState === "loading" && <p className="text-sm text-black/60 dark:text-white/60">Loading live Bazaar tools…</p>}
+      {loadState === "loading" && <p style={{ fontSize: "0.875rem", color: "var(--lp-ink-faint)" }}>Loading live Bazaar tools…</p>}
 
       {loadState === "error" && (
-        <p className="rounded-lg bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-400">
+        <p className="lp-card lp-card--coral" style={{ fontSize: "0.875rem" }}>
           Could not load live Bazaar tools — showing core tools only.
         </p>
       )}
 
       {loadState === "loaded" && specs.length === 0 && (
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p style={{ fontSize: "0.875rem", color: "var(--lp-ink-faint)" }}>
           No verified or proven-unconfirmed Bazaar listings are currently available.
         </p>
       )}
 
       {loadState === "loaded" && specs.length > 0 && (
-        <ul className="flex flex-col gap-4">
+        <ul className="grid grid-cols-1 gap-[var(--lp-sp-6)] sm:grid-cols-2">
           {specs.map((spec) => (
             <BazaarTool key={spec.name} spec={spec} />
           ))}
         </ul>
       )}
 
-      <button
-        type="button"
-        onClick={handleRefresh}
-        disabled={isRefreshing || loadState === "loading"}
-        className="self-start rounded-lg border border-black/10 px-3 py-1.5 text-sm text-black/70 transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:text-white/70 dark:hover:bg-white/10"
-      >
+      <button type="button" onClick={handleRefresh} disabled={isRefreshing || loadState === "loading"} className="lp-btn lp-btn--outline self-start">
         {isRefreshing || loadState === "loading" ? "Refreshing…" : "Refresh tools"}
       </button>
     </section>

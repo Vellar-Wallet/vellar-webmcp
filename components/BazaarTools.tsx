@@ -32,6 +32,8 @@ import {
 
 const FACILITATOR_URL = "https://vellar-facilitator.onrender.com";
 const CATALOG_FETCH_TIMEOUT_MS = 15_000;
+const CATALOG_FETCH_MAX_RETRIES = 3;
+const CATALOG_FETCH_RETRY_DELAY_MS = 3_000;
 
 const DYNAMIC_TOOL_INPUT_SCHEMA = {
   type: "object",
@@ -44,6 +46,55 @@ const DYNAMIC_TOOL_INPUT_SCHEMA = {
 } as const;
 
 type LoadState = "loading" | "loaded" | "error";
+
+/**
+ * Fetches the catalog with a bounded retry-with-backoff, to ride out
+ * vellar-facilitator's own cold start on Render's free tier (the first
+ * request after a period of inactivity can time out or fail outright before
+ * the instance is fully warm).
+ *
+ * Retries ONLY on a genuine failure — a thrown fetch (network error,
+ * timeout via the per-attempt AbortSignal), a non-OK HTTP status, or
+ * unparseable JSON. Deliberately does NOT retry a successful response that
+ * simply contains zero listings — a facilitator that responds 200 with an
+ * empty (or all-unregistrable) catalog is a valid, real state (e.g. no
+ * verified/proven-unconfirmed listings exist right now), not a cold-start
+ * symptom, and treating it as failure would make this function unable to
+ * ever correctly report "0 tools" without wasting a full retry cycle first.
+ */
+async function fetchCatalogWithRetry(
+  url: string,
+  outerSignal: AbortSignal,
+  retries = CATALOG_FETCH_MAX_RETRIES,
+  delayMs = CATALOG_FETCH_RETRY_DELAY_MS,
+): Promise<BazaarCatalogResponse> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    if (outerSignal.aborted) throw new DOMException("aborted", "AbortError");
+
+    const attemptController = new AbortController();
+    const onOuterAbort = () => attemptController.abort();
+    outerSignal.addEventListener("abort", onOuterAbort, { once: true });
+    const attemptTimeout = setTimeout(() => attemptController.abort(), CATALOG_FETCH_TIMEOUT_MS);
+
+    try {
+      const res = await fetch(url, { signal: attemptController.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as BazaarCatalogResponse;
+    } catch (err) {
+      lastError = err;
+      if (outerSignal.aborted) throw err; // unmounted mid-attempt — stop retrying
+      console.warn(`[BazaarTools] catalog fetch attempt ${attempt}/${retries} failed:`, err);
+      if (attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    } finally {
+      clearTimeout(attemptTimeout);
+      outerSignal.removeEventListener("abort", onOuterAbort);
+    }
+  }
+  throw lastError;
+}
 
 /** Builds the full set of dynamic tool specs from a raw catalog response:
  *  filters to registrable, HTTPS, non-templated listings, then deduplicates
@@ -141,20 +192,33 @@ function BazaarTool({ spec }: { spec: DynamicToolSpec }) {
 export function BazaarTools() {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [specs, setSpecs] = useState<DynamicToolSpec[]>([]);
+  // Tracks a manual "Refresh tools" click separately from the initial-mount
+  // load — reuses the same loadCatalog function, but the button's own label
+  // needs to know it's mid-refresh even if loadState is still "loaded" from
+  // the previous successful fetch (we don't want to blank the existing tool
+  // list away to a bare loading message on every manual refresh).
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  // Bumping this re-runs the load effect below — the "Refresh tools" button
+  // re-triggers the catalog fetch + tool re-registration without a full page
+  // reload, per spec.
+  const [refreshNonce, setRefreshNonce] = useState(0);
+
+  function handleRefresh() {
+    setIsRefreshing(true);
+    setRefreshNonce((n) => n + 1);
+  }
 
   useEffect(() => {
-    let cancelled = false;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), CATALOG_FETCH_TIMEOUT_MS);
 
-    (async () => {
+    async function loadCatalog() {
+      setLoadState((prev) => (prev === "loaded" ? prev : "loading"));
       try {
-        const res = await fetch(`${FACILITATOR_URL}/discovery/resources`, { signal: controller.signal });
-        const data: BazaarCatalogResponse = await res.json();
+        const data = await fetchCatalogWithRetry(`${FACILITATOR_URL}/discovery/resources`, controller.signal);
         const items = data.items ?? [];
         const built = buildDynamicToolSpecs(items);
 
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
 
         // Visibility during testing, per spec — logged regardless of
         // outcome, without affecting the user-facing UI.
@@ -169,24 +233,25 @@ export function BazaarTools() {
         setSpecs(built.specs);
         setLoadState("loaded");
       } catch (err) {
-        if (cancelled) return;
-        console.error("[BazaarTools] failed to load the live Bazaar catalog:", err);
+        if (controller.signal.aborted) return;
+        console.error("[BazaarTools] failed to load the live Bazaar catalog after retries:", err);
         setLoadState("error");
+      } finally {
+        if (!controller.signal.aborted) setIsRefreshing(false);
       }
-    })();
+    }
 
-    return () => {
-      cancelled = true;
-      clearTimeout(timeout);
-      controller.abort();
-    };
-  }, []);
+    void loadCatalog();
+
+    return () => controller.abort();
+    // Re-runs whenever a manual refresh is requested — see handleRefresh.
+  }, [refreshNonce]);
 
   return (
     <section className="flex flex-col gap-4">
       <h2 className="text-lg font-medium">Live Bazaar tools</h2>
 
-      {loadState === "loading" && <p className="text-sm text-black/60 dark:text-white/60">Loading live Bazaar catalog…</p>}
+      {loadState === "loading" && <p className="text-sm text-black/60 dark:text-white/60">Loading live Bazaar tools…</p>}
 
       {loadState === "error" && (
         <p className="rounded-lg bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-400">
@@ -207,6 +272,15 @@ export function BazaarTools() {
           ))}
         </ul>
       )}
+
+      <button
+        type="button"
+        onClick={handleRefresh}
+        disabled={isRefreshing || loadState === "loading"}
+        className="self-start rounded-lg border border-black/10 px-3 py-1.5 text-sm text-black/70 transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:text-white/70 dark:hover:bg-white/10"
+      >
+        {isRefreshing || loadState === "loading" ? "Refreshing…" : "Refresh tools"}
+      </button>
     </section>
   );
 }

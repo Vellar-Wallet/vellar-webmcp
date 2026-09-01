@@ -64,6 +64,8 @@ const EARNINGS_INPUT_SCHEMA = {
 
 interface BazaarSearchResource {
   resource?: string;
+  url?: string;
+  endpoint?: string;
   accepts?: Array<{ amount?: string; asset?: string }>;
   trust?: { ownershipState?: string };
   description?: string;
@@ -114,16 +116,33 @@ export default function Home() {
       const { signal, clear } = withTimeoutSignal(15_000);
       try {
         const res = await fetch(`${FACILITATOR_URL}/discovery/search?query=${encodeURIComponent(query)}`, { signal });
-        const data = await res.json();
-        const resources: BazaarSearchResource[] = data.resources ?? [];
-        return JSON.stringify(
-          resources.map((r) => ({
-            url: r.resource,
-            price: formatPrice(r.accepts?.[0]),
-            status: r.trust?.ownershipState ?? "unknown",
-            description: r.description ?? "",
-          })),
-        );
+        const data = await res.json().catch(() => ({}));
+
+        // Logged so a real failure mode is visible in the console rather
+        // than only inferred from a downstream "Cannot read properties of
+        // undefined" error — e.g. a missing `query` param returns
+        // { error: "invalid_query", detail: "..." } with no resources key
+        // at all (confirmed live), and any future change to the
+        // facilitator's response shape shows up here immediately.
+        console.log("[search_vellar_bazaar] raw response:", JSON.stringify(data));
+
+        // The facilitator's own /discovery/search key is `resources`
+        // (confirmed live), but this stays defensive against alternate
+        // shapes (`results`/`items`/`data`) and, on a 400 like
+        // invalid_query, there is no results key at all — resources then
+        // falls through every ?? to the final [], never undefined.
+        const resources = data?.resources ?? data?.results ?? data?.items ?? data?.data ?? [];
+
+        const mapped = Array.isArray(resources)
+          ? (resources as BazaarSearchResource[]).map((r) => ({
+              url: r?.resource ?? r?.url ?? r?.endpoint ?? "unknown",
+              price: formatPrice(r?.accepts?.[0]),
+              status: r?.trust?.ownershipState ?? "unknown",
+              description: r?.description ?? "",
+            }))
+          : [];
+
+        return JSON.stringify(mapped);
       } finally {
         clear();
       }
